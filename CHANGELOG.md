@@ -3,7 +3,7 @@
 ## 0.1.1
 
 - Fix: the npmjs.com package page rendered the Chinese README. npm's `@npmcli/package-json` globs `{README,README.*}` and takes the first match in unsorted readdir order, so `README.zh.md` could win over `README.md`. Renamed to `README-zh.md`, which cannot match that glob. No code changes — `lib/index.js` is byte-identical to 0.1.0.
-- CI: removed the `NPM_TOKEN` fallback now that trusted publishing is configured. npm's `oidc()` never throws and logs failures below the default loglevel, so the fallback would have silently masked a broken trusted-publisher binding and published with a long-lived secret. Also dropped `registry-url` from `setup-node`, which was writing `_authToken=${NODE_AUTH_TOKEN}` into the npmrc — `@npmcli/config` substitutes that literal text back when the variable is unset, which would have let npm skip its `ENEEDAUTH` check and PUT with a garbage bearer token. A broken binding now fails as `ENEEDAUTH` rather than an opaque 401.
+- CI: publishing is now trusted-publishing-only — the `NPM_TOKEN` fallback and `setup-node`'s `registry-url` are both gone, so a broken binding fails as a legible `ENEEDAUTH` instead of an opaque 401, and the release steps now reject a reintroduced static credential or a README that could hijack the package page. Rationale lives in `publish.yml`'s comments.
 
 ## 0.1.0
 

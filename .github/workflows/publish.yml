@@ -4,9 +4,7 @@ name: Publish to npm
 # main, so ordinary commits never risk a release.
 #
 # Auth is npm Trusted Publishing (OIDC): a short-lived token minted per run,
-# no NPM_TOKEN secret to store or rotate. (0.1.0 bootstrapped with a temporary
-# token because npm only lets you configure a trusted publisher on a package
-# that already exists; that fallback and its secret are both gone.)
+# no NPM_TOKEN secret to store or rotate.
 #
 # To release: bump "version" in package.json, add a CHANGELOG entry, commit,
 # then `git tag vX.Y.Z && git push origin vX.Y.Z`. The tag must match
@@ -18,7 +16,6 @@ name: Publish to npm
 #   Repository:           dsh-update-notifier
 #   Workflow filename:    publish.yml
 #   Allowed action:       npm publish
-# (Trusted publishing needs npm >= 11.5.1 and Node >= 22.14.0, ensured below.)
 
 on:
   push:
@@ -37,49 +34,53 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Deliberately NO `registry-url`: it makes setup-node write an npmrc
-      # containing `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`, and
-      # @npmcli/config substitutes the LITERAL text back when that variable is
-      # unset. npm would then see a non-empty credential, skip its ENEEDAUTH
-      # check, and PUT with a garbage bearer token — turning a broken
-      # trusted-publisher binding into an opaque 401. npm defaults to
-      # registry.npmjs.org anyway and OIDC does not need this set.
+      # No `registry-url` on purpose — see the Publish step's note.
+      # The floating "24" pin matters: 24.5.0+ bundles npm >= 11.5.1, the
+      # trusted-publishing floor, so no global npm upgrade is needed.
       - uses: actions/setup-node@v4
         with:
-          node-version: "24" # trusted publishing needs Node >= 22.14.0
+          node-version: "24"
 
-      - name: Verify the tag matches package.json
+      - name: Verify the release
+        id: release
         run: |
+          NAME=$(node -p "require('./package.json').name")
           VERSION=$(node -p "require('./package.json').version")
           TAG="${GITHUB_REF_NAME#v}"
           if [ "$VERSION" != "$TAG" ]; then
             echo "::error::tag $GITHUB_REF_NAME does not match package.json version $VERSION — bump one of them and re-tag."
             exit 1
           fi
-          echo "Releasing $(node -p "require('./package.json').name")@$VERSION"
+          # npm picks the package page by globbing {README,README.*} and taking
+          # the FIRST match in unsorted readdir order, so a sibling like
+          # README.zh.md can publish as the page instead of README.md (it did,
+          # in 0.1.0). Any such file must be named so the glob cannot see it.
+          STRAY=$(ls -A | grep -iE '^README(\..+)?$' | grep -vx 'README.md' || true)
+          if [ -n "$STRAY" ]; then
+            echo "::error::$STRAY can win npm's README glob and publish as the package page — rename it (e.g. README-zh.md)."
+            exit 1
+          fi
+          echo "Releasing $NAME@$VERSION"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Check the version isn't already published
         id: guard
+        env:
+          NAME: ${{ steps.release.outputs.name }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
-          NAME=$(node -p "require('./package.json').name")
-          VERSION=$(node -p "require('./package.json').version")
           # --json makes failures machine-readable: npm prints {"error":{"code":...}}
           # on stdout, so E404 is detected structurally instead of grepping prose
           # (which breaks the day npm rewords its error output).
           set +e
-          OUT=$(npm view "$NAME@$VERSION" version --json 2>stderr.txt)
+          OUT=$(npm view "$NAME@$VERSION" version --json 2>"$RUNNER_TEMP/npm-view.err")
           CODE=$?
           set -e
           if [ $CODE -eq 0 ] && [ -n "$OUT" ]; then
             echo "$NAME@$VERSION is already on npm — nothing to publish."
             echo "publish=false" >> "$GITHUB_OUTPUT"
-          elif printf '%s' "$OUT" | node -e '
-            let s = "";
-            process.stdin.on("data", (d) => (s += d)).on("end", () => {
-              try { process.exit(JSON.parse(s).error.code === "E404" ? 0 : 1); }
-              catch { process.exit(1); }
-            });
-          '; then
+          elif [ "$(printf '%s' "$OUT" | jq -r '.error.code // ""' 2>/dev/null)" = "E404" ]; then
             echo "$NAME@$VERSION not found (E404) — will publish."
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
@@ -88,27 +89,32 @@ jobs:
             # to see it and re-run the workflow.
             echo "::error::npm view failed for a non-404 reason — failing so the release isn't silently skipped. Re-run this workflow once the registry recovers."
             printf '%s\n' "$OUT"
-            cat stderr.txt
+            cat "$RUNNER_TEMP/npm-view.err"
             exit 1
           fi
 
-      # Only the publish itself needs npm >= 11.5.1 (trusted publishing); the
-      # guard above works with the runner's preinstalled npm.
-      - name: Ensure npm supports trusted publishing
-        if: steps.guard.outputs.publish == 'true'
-        run: npm install -g npm@latest # needs >= 11.5.1
-
-      # No NODE_AUTH_TOKEN: the npm CLI authenticates via the OIDC credential
-      # granted by `id-token: write`, verified against the trusted publisher
-      # configured on npmjs.com.
+      # Deliberately no long-lived token fallback, and no `registry-url` on
+      # setup-node. npm's oidc() never throws — every failure path returns
+      # undefined and logs below the default loglevel — so a static credential
+      # would silently paper over a broken trusted publisher (renamed workflow,
+      # transferred repo) and publish with the secret instead. registry-url is
+      # part of that: it writes `_authToken=${NODE_AUTH_TOKEN}` into the npmrc,
+      # and @npmcli/config substitutes the LITERAL text back when the variable
+      # is unset, which npm reads as a credential (noCreds false) and PUTs as a
+      # garbage bearer token — an opaque 401 instead of ENEEDAUTH.
       #
-      # Deliberately no long-lived token fallback. npm's oidc() never throws —
-      # every failure path returns undefined and logs below the default
-      # loglevel — so a token here would silently paper over a broken trusted
-      # publisher (renamed workflow, transferred repo) and publish with the
-      # secret while this file still claimed per-run credentials. With no
-      # credential configured at all (see the setup-node note above), that
-      # misconfiguration instead fails as ENEEDAUTH, naming auth as the cause.
+      # The guard below asserts that absence by behavior rather than by comment,
+      # so any future reintroduction — here, at job level, or via registry-url —
+      # fails the release instead of quietly becoming the auth path.
       - name: Publish
         if: steps.guard.outputs.publish == 'true'
-        run: npm publish --provenance --access public
+        run: |
+          # setup-node exports NPM_CONFIG_USERCONFIG only when given a
+          # registry-url, so these two variables are exactly the two routes a
+          # static credential can return by. (npm config get refuses to read
+          # _authToken back, so this checks the inputs rather than the result.)
+          if [ -n "$NODE_AUTH_TOKEN" ] || [ -n "$NPM_CONFIG_USERCONFIG" ]; then
+            echo "::error::a static npm credential path is configured (NODE_AUTH_TOKEN / setup-node registry-url) — trusted publishing must be the only auth path."
+            exit 1
+          fi
+          npm publish --provenance --access public

@@ -1,6 +1,6 @@
 # dsh-update-notifier
 
-[English](./README.md)
+[English](README.md) | 中文
 
 一个 [DeepSeek Harness (dsh)](https://github.com/deepseek-ai) 插件：**每小时检查一次 npm 上已安装 dsh 插件是否有新版本**，发现更新时**弹出一个审批气泡，让你勾选要升级哪些**。勾选后由智能体执行升级；插件自己绝不会擅自升级。
 

@@ -34,10 +34,9 @@ Invariants worth preserving when editing:
 
 Publishing uses npm Trusted Publishing (OIDC). `.github/workflows/publish.yml` runs **only on `v*` tag pushes** — plain pushes to `main` publish nothing. The run fails if the tag doesn't match `package.json`'s version, and skips if that version is already on npm.
 
-There is deliberately **no long-lived token fallback**: npm's `oidc()` never throws and logs its failures below the default loglevel, so a `NODE_AUTH_TOKEN` would silently mask a broken trusted-publisher binding (renamed workflow, transferred repo) and publish with the secret instead. (0.1.0 bootstrapped with a temporary token because npm only allows configuring a trusted publisher on a package that already exists; both the fallback and the secret were removed in 0.1.1.)
+Two invariants are enforced by the workflow itself rather than by convention; `publish.yml`'s comments carry the full reasoning, so change them there, not here:
 
-Two things must stay absent for a broken binding to fail as a legible `ENEEDAUTH` rather than an opaque registry 401: the `env: NODE_AUTH_TOKEN` block **and** `registry-url` on `setup-node`. The latter writes `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}` into the npmrc, and `@npmcli/config` substitutes that *literal string* back when the variable is unset — npm then sees a non-empty credential (`noCreds === false` at `publish.js:144`), skips the `ENEEDAUTH` throw, and PUTs with a garbage bearer token.
-
-Note on the Chinese README's filename: it must **not** be named `README.zh.md`. npm's `@npmcli/package-json` globs `{README,README.*}` and takes the first match, unsorted, so `README.zh.md` can win and publish the Chinese text as the npmjs.com package page — which is exactly what happened to 0.1.0. `README-zh.md` cannot match that glob.
+- **No static npm credential.** Neither a `NODE_AUTH_TOKEN` env nor `registry-url` on `setup-node` (which writes one into the npmrc) may come back — either turns a broken trusted-publisher binding into an opaque 401 instead of an `ENEEDAUTH`. The Publish step fails the run if either reappears. 0.1.0 bootstrapped with a temporary token, because npm only allows configuring a trusted publisher on a package that already exists; that fallback and its secret went away in 0.1.1.
+- **The Chinese README must not be named `README.zh.md`.** npm globs `{README,README.*}` and takes the first match, so it can publish the Chinese text as the package page — it did in 0.1.0. `README-zh.md` cannot match that glob, and the release step rejects any file that can.
 
 To cut a release: bump `version` in `package.json`, add a `CHANGELOG.md` entry, commit, then `git tag vX.Y.Z && git push origin vX.Y.Z`. Keep `README.md` and `README-zh.md` in sync — both ship in the package.
