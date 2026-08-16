@@ -1,0 +1,55 @@
+{
+  "name": "dsh-update-notifier",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Hourly checks npm for newer versions of your installed DeepSeek Harness (dsh) plugins and pops an approval bubble asking which to upgrade; approved upgrades are handed to the agent to run.",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "deepseek-harness-plugin",
+    "update-notifier",
+    "outdated",
+    "upgrade",
+    "cordis"
+  ],
+  "license": "MIT",
+  "author": "Stuart Hu",
+  "homepage": "https://github.com/stuarthu/dsh-update-notifier#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stuarthu/dsh-update-notifier.git"
+  },
+  "bugs": {
+    "url": "https://github.com/stuarthu/dsh-update-notifier/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-llm": "*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-llm": {
+      "optional": true
+    }
+  }
+}

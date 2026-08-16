@@ -1,0 +1,6 @@
+node_modules/
+.dsh-update-notifier.json
+*.tgz
+*.log
+.DS_Store
+package-lock.json

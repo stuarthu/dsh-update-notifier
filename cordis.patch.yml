@@ -1,0 +1,24 @@
+# dsh-update-notifier bundle patch — mounts the hourly update checker.
+#
+# Behavior: every `interval` ms it compares each installed plugin package's
+# version against the registry's latest dist-tag; when something is newer it
+# pops a multi-select approval bubble (ctx.userQuestions) in the most recently
+# active session. Ticked plugins are handed to that session's agent to upgrade
+# (`pnpm add`); unticked ones are recorded in .dsh-update-notifier.json and
+# never re-asked for that version. It never upgrades anything by itself.
+- insert:
+    - id: update-notifier
+      name: 'dsh-update-notifier'
+      # config:
+      #   # Milliseconds between checks (default 3600000 = 1 hour, min 60000).
+      #   interval: 3600000
+      #   # Milliseconds before the first check after boot (default 10000).
+      #   initialDelay: 10000
+      #   # npm-compatible registry to query (default https://registry.npmjs.org).
+      #   registry: 'https://registry.npmjs.org'
+      #   # Package names to never check or mention.
+      #   exclude: []
+      #   # Per-request registry timeout in ms (default 10000).
+      #   fetchTimeout: 10000
+      #   # Absolute path to the profile dir; auto-detected if omitted.
+      #   profileDir: ''
