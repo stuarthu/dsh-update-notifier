@@ -117,4 +117,9 @@ jobs:
             echo "::error::a static npm credential path is configured (NODE_AUTH_TOKEN / setup-node registry-url) — trusted publishing must be the only auth path."
             exit 1
           fi
-          npm publish --provenance --access public
+          # --loglevel verbose is deliberate: npm's OIDC exchange reports why it
+          # failed (`oidc Failed token exchange request with body message: …`)
+          # at verbose only, so at the default level a mis-bound trusted
+          # publisher gives a bare ENEEDAUTH with no cause. Releases are rare;
+          # the extra output is worth the one time it matters.
+          npm publish --provenance --access public --loglevel verbose
