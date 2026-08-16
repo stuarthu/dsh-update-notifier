@@ -37,10 +37,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Deliberately NO `registry-url`: it makes setup-node write an npmrc
+      # containing `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`, and
+      # @npmcli/config substitutes the LITERAL text back when that variable is
+      # unset. npm would then see a non-empty credential, skip its ENEEDAUTH
+      # check, and PUT with a garbage bearer token — turning a broken
+      # trusted-publisher binding into an opaque 401. npm defaults to
+      # registry.npmjs.org anyway and OIDC does not need this set.
       - uses: actions/setup-node@v4
         with:
           node-version: "24" # trusted publishing needs Node >= 22.14.0
-          registry-url: "https://registry.npmjs.org"
 
       - name: Verify the tag matches package.json
         run: |
@@ -100,8 +106,9 @@ jobs:
       # every failure path returns undefined and logs below the default
       # loglevel — so a token here would silently paper over a broken trusted
       # publisher (renamed workflow, transferred repo) and publish with the
-      # secret while this file still claimed per-run credentials. Without one,
-      # that misconfiguration fails loudly with ENEEDAUTH, which is what we want.
+      # secret while this file still claimed per-run credentials. With no
+      # credential configured at all (see the setup-node note above), that
+      # misconfiguration instead fails as ENEEDAUTH, naming auth as the cause.
       - name: Publish
         if: steps.guard.outputs.publish == 'true'
         run: npm publish --provenance --access public
