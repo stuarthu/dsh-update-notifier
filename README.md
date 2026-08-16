@@ -1,6 +1,6 @@
 # dsh-update-notifier
 
-[中文](./README.zh.md)
+[中文](./README-zh.md)
 
 A [DeepSeek Harness (dsh)](https://github.com/deepseek-ai) plugin that **hourly checks npm for newer versions of your installed dsh plugins** and, when it finds any, **pops an approval bubble asking which ones to upgrade**. Tick the ones you want; the agent runs the upgrade. It never upgrades anything on its own.
 

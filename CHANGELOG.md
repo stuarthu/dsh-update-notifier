@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+- Fix: the npmjs.com package page rendered the Chinese README. npm's `@npmcli/package-json` globs `{README,README.*}` and takes the first match in unsorted readdir order, so `README.zh.md` could win over `README.md`. Renamed to `README-zh.md`, which cannot match that glob. No code changes — `lib/index.js` is byte-identical to 0.1.0.
+- CI: removed the `NPM_TOKEN` fallback now that trusted publishing is configured. npm's `oidc()` never throws and logs failures below the default loglevel, so the fallback would have silently masked a broken trusted-publisher binding and published with a long-lived secret; releases now fail loudly instead.
+
 ## 0.1.0
 
 Initial release.
