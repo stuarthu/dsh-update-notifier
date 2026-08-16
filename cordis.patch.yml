@@ -9,16 +9,20 @@
 - insert:
     - id: update-notifier
       name: 'dsh-update-notifier'
+      # An individual plugin can also opt itself out of being checked, from
+      # its OWN package.json: { "dsh": { "updateNotifier": false } }.
+      #
       # config:
       #   # Milliseconds between checks (default 3600000 = 1 hour, min 60000).
       #   interval: 3600000
-      #   # Milliseconds before the first check after boot (default 10000).
+      #   # Milliseconds before the first check after boot (default 10000, min 0).
       #   initialDelay: 10000
       #   # npm-compatible registry to query (default https://registry.npmjs.org).
       #   registry: 'https://registry.npmjs.org'
       #   # Package names to never check or mention.
       #   exclude: []
-      #   # Per-request registry timeout in ms (default 10000).
+      #   # Per-request registry timeout in ms (default 10000, min 1000).
       #   fetchTimeout: 10000
-      #   # Absolute path to the profile dir; auto-detected if omitted.
+      #   # Absolute path to the profile dir; auto-detected if omitted. When
+      #   # detection fails the plugin warns and stays inactive.
       #   profileDir: ''

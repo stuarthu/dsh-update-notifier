@@ -1,5 +1,8 @@
 # Changelog
 
+All notable changes to `dsh-update-notifier` are documented here. This project
+follows semantic versioning.
+
 ## 0.1.1
 
 - Fix: the npmjs.com package page rendered the Chinese README. npm's `@npmcli/package-json` globs `{README,README.*}` and takes the first match in unsorted readdir order, so `README.zh.md` could win over `README.md`. Renamed to `README-zh.md`, which cannot match that glob. No code changes — `lib/index.js` is byte-identical to 0.1.0.
