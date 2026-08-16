@@ -3,6 +3,15 @@
 All notable changes to `dsh-update-notifier` are documented here. This project
 follows semantic versioning.
 
+## 0.2.1
+
+Four fixes from a review of 0.2.0. No behaviour changes beyond these.
+
+- Fix: `/check-updates` promised a bubble that could never appear. `userQuestions.ask()` rejects with `NO_PROVIDER` until a UI package registers the single active provider, and only the web host does — so on a profile built on `dsh-base` alone the row settled as "2 updates — see the question above" and nothing was ever shown, while the manual `pnpm ... add` fallback was skipped because the *service* was present. The provider itself is now what decides.
+- Fix: a cycle that ends without a verdict no longer swallows a pending offer. An offer held for want of a live session was dropped by a cancelled row, an unreachable registry, a degraded loader or a thrown check, and was then not re-offered until the next hourly cycle.
+- Fix: a `200` response with no usable `version` in it counted as "no update" rather than as unreachable, so a mirror or proxy answering every package with its own JSON reported a whole profile as up to date — the exact false all-clear the unreachable sentinel exists to prevent.
+- Fix: `N plugins checked` counted the packages attempted, so a partial sweep read `7 plugins checked, 2 unreachable` and claimed two of them twice; it now counts the ones the registry actually answered for, and the two numbers add up.
+
 ## 0.2.0
 
 - Added `/check-updates`, a manual trigger for the check that until now only ran on the hourly timer. It sweeps the registry immediately, raises the ordinary approval bubble against the session it was typed in, and settles as soon as the sweep finishes — the bubble outlives the command row rather than holding it pending under the UI request's abort signal.
