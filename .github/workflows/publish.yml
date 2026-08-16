@@ -1,9 +1,15 @@
 name: Publish to npm
 
 # Releases are cut by pushing a v* tag — nothing publishes on a plain push to
-# main, so ordinary commits never risk a release. Auth is npm Trusted
-# Publishing (OIDC): a short-lived token minted per run, no NPM_TOKEN secret to
-# store or rotate.
+# main, so ordinary commits never risk a release.
+#
+# Auth is npm Trusted Publishing (OIDC) — a short-lived token minted per run —
+# with the NPM_TOKEN secret as a fallback for the BOOTSTRAP publish. npm only
+# lets you configure a trusted publisher on a package that already exists, so
+# the very first release of a new package cannot use OIDC alone; the token
+# covers it. Once the trusted publisher is configured on npmjs.com, delete the
+# NPM_TOKEN secret and this fallback goes dormant (OIDC is tried first and
+# wins whenever it is configured).
 #
 # To release: bump "version" in package.json, add a CHANGELOG entry, commit,
 # then `git tag vX.Y.Z && git push origin vX.Y.Z`. The tag must match
@@ -89,9 +95,14 @@ jobs:
         if: steps.guard.outputs.publish == 'true'
         run: npm install -g npm@latest # needs >= 11.5.1
 
-      # No NODE_AUTH_TOKEN: the npm CLI authenticates via the OIDC credential
-      # granted by `id-token: write`, verified against the trusted publisher
-      # configured on npmjs.com.
+      # The npm CLI prefers the OIDC credential granted by `id-token: write`,
+      # verified against the trusted publisher configured on npmjs.com. When no
+      # trusted publisher exists yet (the first release of a new package), that
+      # exchange yields nothing and npm falls back to NODE_AUTH_TOKEN. With the
+      # secret deleted the fallback is simply empty and OIDC is the only path.
+      # Provenance is signed either way (it needs `id-token: write`, not OIDC auth).
       - name: Publish
         if: steps.guard.outputs.publish == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
