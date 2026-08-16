@@ -53,9 +53,10 @@ shown at all, the settlement carries the `pnpm ... add` command instead, so the
 answer is never just "you can't".
 
 Packages the registry could not be reached about — a network failure, a timeout,
-a 5xx, a rate-limit — are counted in the settlement rather than passed off as up
-to date, and a sweep where *nothing* could be reached settles as an error, not as
-"no updates". Cancelling the row stops the sweep, so a check you cancel cannot
+a 5xx, a rate-limit, or an answer with no version in it — are counted in the
+settlement rather than passed off as up to date, and a sweep where *nothing*
+could be reached settles as an error, not as "no updates". The two counts add up:
+`5 plugins checked, 2 unreachable` means seven were swept. Cancelling the row stops the sweep, so a check you cancel cannot
 pop a bubble at you a minute later.
 
 The manual check **ignores the decline memory below**: you asked, so you get the
@@ -82,10 +83,12 @@ above overrides this):
 - **A bubble you never answered** (session ended, dsh stopped) is not a
   decline — you will be asked again.
 
-With no live session yet, or in a composition with no `userQuestions` provider
-(headless), the offer is held: it is retried right after your next message and
-on the next hourly cycle. With no provider at all, the available updates and the
-exact upgrade command are written to the log instead.
+With no live session yet, the offer is held: it is retried right after your next
+message and on the next hourly cycle. It is also held where nothing can render
+the bubble at all — a headless profile, or one that composes the `userQuestions`
+service with no UI registered against it — and there the available updates and
+the exact upgrade command go to the log as well, because no message of yours is
+going to make a bubble appear.
 
 ## Install
 
@@ -106,6 +109,7 @@ public host services, so it degrades rather than breaks if one is absent:
 |---|---|
 | `loader.entries()` | finding which packages back the loaded plugins |
 | `userQuestions.ask()` | rendering the approval bubble |
+| `userQuestions.provider` | not promising a bubble no UI has registered to render |
 | `agents.get(sessionId)` | resolving the session's live agent |
 | `agent.followup()` | waking that agent to run the upgrade |
 | `session/event` (`user/message`) | tracking the most recently active session |
@@ -114,8 +118,7 @@ public host services, so it degrades rather than breaks if one is absent:
 | `agents.roots()` | not promising a bubble `ask()` would refuse |
 
 `userQuestions` and `commands` are resolved when needed rather than declared as
-dependencies, so the plugin still loads in a headless profile that has no
-provider for either.
+dependencies, so the plugin still loads in a headless profile that has neither.
 
 ## Opting out
 
@@ -173,8 +176,8 @@ Set on the `update-notifier` row in your profile's `cordis.patch.yml`:
   including a lower one after an unpublish — you are asked again.
 - The bubble needs a session that dsh can attach a question to. Registry
   failures, degraded loader state, and an unwritable state file all degrade to
-  logging; a profile dir that cannot be located is the one case that disables
-  the plugin outright, and it says so in the log.
+  logging; only two things disable the plugin outright — no plugin loader on the
+  context, and a profile dir it cannot locate — and it says which in the log.
 
 ## License
 

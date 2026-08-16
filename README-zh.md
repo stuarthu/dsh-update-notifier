@@ -45,8 +45,10 @@ check-updates · 2 updates — see the question above (7 plugins checked)
 如果当前根本无法弹出气泡，结算文本里会直接给出 `pnpm ... add` 命令，而不是只
 告诉你"做不到"。
 
-查询不到的包（网络故障、超时、5xx、限流）会在结算文本中单独计数，而不会被当成
-"已是最新"；如果**所有**包都查不到，这条命令会以错误结算，而不是报告"没有更新"。
+查询不到的包（网络故障、超时、5xx、限流，或响应里根本没有版本号）会在结算文本中
+单独计数，而不会被当成"已是最新"；如果**所有**包都查不到，这条命令会以错误结算，
+而不是报告"没有更新"。两个数字相加即为本轮总数：`5 plugins checked, 2 unreachable`
+表示一共查了 7 个。
 取消这条命令会同时中止检查，因此被你取消的检查不会过一会儿又弹出气泡。
 
 手动检查会**忽略下面的拒绝记忆**：既然是你主动问的，就把完整列表给你，包括你此前
@@ -68,9 +70,10 @@ check-updates · 2 updates — see the question above (7 plugins checked)
   提醒才是合理的。
 - **你从未回答过的气泡**（会话结束、dsh 停止）不算拒绝——下次仍会询问。
 
-尚无活跃会话，或所在组合没有 `userQuestions` provider（headless 场景）时，
-提醒会挂起：在你下一条消息之后立即重试，下一轮定时检查也会重试。若完全没有
-provider，则改为把可用更新和确切的升级命令写入日志。
+尚无活跃会话时，提醒会挂起：在你下一条消息之后立即重试，下一轮定时检查也会重试。
+如果根本没有任何界面能渲染气泡——headless profile，或者虽然组合了 `userQuestions`
+服务但没有任何 UI 向它注册 provider——提醒同样会挂起，并且会把可用更新和确切的
+升级命令一并写入日志，因为这种情况下你再发消息也不会有气泡出现。
 
 ## 安装
 
@@ -91,6 +94,7 @@ dsh plugin --profile web add dsh-update-notifier
 |---|---|
 | `loader.entries()` | 找出哪些包支撑着已加载的插件 |
 | `userQuestions.ask()` | 渲染审批气泡 |
+| `userQuestions.provider` | 没有 UI 注册渲染时，不承诺会有气泡 |
 | `agents.get(sessionId)` | 解析会话对应的活跃智能体 |
 | `agent.followup()` | 唤醒该智能体执行升级 |
 | `session/event`（`user/message`） | 追踪最近活跃的会话 |
@@ -99,7 +103,7 @@ dsh plugin --profile web add dsh-update-notifier
 | `agents.roots()` | 避免承诺一个 `ask()` 会拒绝的气泡 |
 
 `userQuestions` 和 `commands` 都是用到时才解析的，而不是声明为依赖，因此在两者
-都没有 provider 的 headless profile 中，插件依然能正常加载。
+都不存在的 headless profile 中，插件依然能正常加载。
 
 ## 退出检查
 
@@ -150,8 +154,8 @@ dsh plugin --profile web add dsh-update-notifier
   `latest` 变成另一个仍然高于你当前版本的版本——包括 unpublish 之后降下来的
   版本——你还是会被再次询问。
 - 气泡需要一个 dsh 能挂载提问的会话。注册表故障、loader 状态异常、状态文件不可
-  写，都只会降级为日志；唯一会让插件直接停用的是定位不到 profile 目录，此时日志
-  中会明确说明。
+  写，都只会降级为日志；只有两种情况会让插件直接停用——上下文里没有插件 loader，
+  以及定位不到 profile 目录——此时日志中会明确说明是哪一种。
 
 ## 许可
 
