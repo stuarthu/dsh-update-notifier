@@ -6,6 +6,10 @@
 # active session. Ticked plugins are handed to that session's agent to upgrade
 # (`pnpm add`); unticked ones are recorded in .dsh-update-notifier.json and
 # never re-asked for that version. It never upgrades anything by itself.
+#
+# `/check-updates` runs a cycle on demand against the session it is typed in,
+# ignoring those recorded declines. It is registered only where a command
+# registry is composed, and needs no config.
 - insert:
     - id: update-notifier
       name: 'dsh-update-notifier'

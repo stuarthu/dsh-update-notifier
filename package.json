@@ -1,6 +1,6 @@
 {
   "name": "dsh-update-notifier",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "description": "Hourly checks npm for newer versions of your installed DeepSeek Harness (dsh) plugins and pops an approval bubble asking which to upgrade; approved upgrades are handed to the agent to run.",
   "keywords": [

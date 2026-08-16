@@ -2,9 +2,9 @@
 
 English | [中文](README-zh.md)
 
-Hourly check for newer versions of your installed
-[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh)
-plugins, with a **one-click approval bubble** to upgrade them.
+Hourly — or on demand, with `/check-updates` — check for newer versions of your
+installed [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
+(dsh) plugins, with a **one-click approval bubble** to upgrade them.
 
 Nothing in dsh tells you a plugin you installed has moved on; you find out by
 remembering to run `npm view` yourself. This plugin closes that gap: it compares
@@ -36,7 +36,42 @@ Once an hour (configurable), for every npm package backing a loaded plugin:
   [`dsh-hot-reload`](https://github.com/stuarthu/dsh-hot-reload) and the new
   version applies live, without restarting dsh.
 
-You are asked about a given version **once**:
+## `/check-updates`
+
+Don't want to wait for the hour to come round? Type `/check-updates` in the
+session:
+
+```
+/check-updates
+check-updates · 2 updates — see the question above (7 plugins checked)
+```
+
+It runs a full cycle immediately, against the session you typed it in, and the
+row settles as soon as the registry sweep finishes — the bubble it raises is an
+ordinary one, answerable whenever, surviving a refresh. Where no bubble can be
+shown at all, the settlement carries the `pnpm ... add` command instead, so the
+answer is never just "you can't".
+
+Packages the registry could not be reached about — a network failure, a timeout,
+a 5xx, a rate-limit — are counted in the settlement rather than passed off as up
+to date, and a sweep where *nothing* could be reached settles as an error, not as
+"no updates". Cancelling the row stops the sweep, so a check you cancel cannot
+pop a bubble at you a minute later.
+
+The manual check **ignores the decline memory below**: you asked, so you get the
+full list, including versions you left unticked earlier. It does not disturb the
+hourly schedule, and it declines to run — with a reason — while a bubble is
+already open or a check is already in flight.
+
+The command appears wherever dsh composes a command registry — which
+`@deepseek-ai/dsh-base` does, so any profile built on it has `/check-updates`.
+It is registered through `ctx.inject`, so a headless profile without one still
+loads the plugin and keeps its hourly checks.
+
+## Asked once
+
+You are asked about a given version **once** (by the hourly cycle — the command
+above overrides this):
 
 - **Unticked ones are declines**, recorded in
   `<profileDir>/.dsh-update-notifier.json` and never offered again — across
@@ -75,9 +110,12 @@ public host services, so it degrades rather than breaks if one is absent:
 | `agent.followup()` | waking that agent to run the upgrade |
 | `session/event` (`user/message`) | tracking the most recently active session |
 | `agent/disposed` | withdrawing a bubble whose session died |
+| `commands.register()` | the `/check-updates` command |
+| `agents.roots()` | not promising a bubble `ask()` would refuse |
 
-`userQuestions` is resolved at ask time rather than declared as a dependency, so
-the plugin still loads in a headless profile that has no provider for it.
+`userQuestions` and `commands` are resolved when needed rather than declared as
+dependencies, so the plugin still loads in a headless profile that has no
+provider for either.
 
 ## Opting out
 
@@ -127,8 +165,9 @@ Set on the `update-notifier` row in your profile's `cordis.patch.yml`:
   ranges, `next`/`beta` channels, or holding a package back at a major version;
   a plugin whose newest release you never want should use `exclude`.
 - **One bubble at a time.** While a bubble waits for an answer the hourly checks
-  skip, so anything published meanwhile is picked up on the first cycle after
-  you answer.
+  skip — and `/check-updates` refuses with "an upgrade question is already open"
+  — so anything published meanwhile is picked up on the first cycle after you
+  answer.
 - **A decline is keyed to that exact version**, not to "anything up to it": if
   the registry's `latest` moves to a different version that still beats yours —
   including a lower one after an unpublish — you are asked again.

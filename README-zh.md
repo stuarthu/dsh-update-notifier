@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-每小时检查已安装的
+每小时——或用 `/check-updates` 随时手动触发——检查已安装的
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）
 插件有无新版本，并用一个**一键审批气泡**让你决定是否升级。
 
@@ -31,7 +31,35 @@ dsh 本身不会告诉你某个已安装插件已经出了新版，只能靠自�
   [`dsh-hot-reload`](https://github.com/stuarthu/dsh-hot-reload)
   使用，新版本无需重启 dsh 即可生效。
 
-同一个版本只会问你**一次**：
+## `/check-updates`
+
+不想等下一个整点？在会话里输入 `/check-updates`：
+
+```
+/check-updates
+check-updates · 2 updates — see the question above (7 plugins checked)
+```
+
+它会立即针对你输入命令的那个会话跑一轮完整检查，并在注册表查询结束的那一刻就
+结算这条命令——它弹出的气泡就是一个普通气泡，你可以随时回答，刷新页面也不会丢。
+如果当前根本无法弹出气泡，结算文本里会直接给出 `pnpm ... add` 命令，而不是只
+告诉你"做不到"。
+
+查询不到的包（网络故障、超时、5xx、限流）会在结算文本中单独计数，而不会被当成
+"已是最新"；如果**所有**包都查不到，这条命令会以错误结算，而不是报告"没有更新"。
+取消这条命令会同时中止检查，因此被你取消的检查不会过一会儿又弹出气泡。
+
+手动检查会**忽略下面的拒绝记忆**：既然是你主动问的，就把完整列表给你，包括你此前
+未勾选的版本。它不会打乱定时检查的节奏；如果已有气泡未回答、或已有检查正在进行，
+它会带着原因拒绝执行。
+
+只要 dsh 组合了命令注册表，该命令就会出现——`@deepseek-ai/dsh-base` 就会组合它，
+因此基于它的 profile 都能用 `/check-updates`。命令通过 `ctx.inject` 注册，所以
+没有命令注册表的 headless profile 依然能加载本插件并照常执行定时检查。
+
+## 只问一次
+
+同一个版本只会问你**一次**（指定时检查；上面的命令可以越过这条规则）：
 
 - **未勾选的视为拒绝**，记录在 `<profileDir>/.dsh-update-notifier.json` 中，
   **跨重启**永不再提，直到注册表的 `latest` 变成另一个仍然高于你已安装版本的
@@ -67,9 +95,11 @@ dsh plugin --profile web add dsh-update-notifier
 | `agent.followup()` | 唤醒该智能体执行升级 |
 | `session/event`（`user/message`） | 追踪最近活跃的会话 |
 | `agent/disposed` | 撤回会话已销毁的气泡 |
+| `commands.register()` | 注册 `/check-updates` 命令 |
+| `agents.roots()` | 避免承诺一个 `ask()` 会拒绝的气泡 |
 
-`userQuestions` 是在提问时才解析的，而不是声明为依赖，因此在没有对应 provider
-的 headless profile 中，插件依然能正常加载。
+`userQuestions` 和 `commands` 都是用到时才解析的，而不是声明为依赖，因此在两者
+都没有 provider 的 headless profile 中，插件依然能正常加载。
 
 ## 退出检查
 
@@ -113,8 +143,9 @@ dsh plugin --profile web add dsh-update-notifier
   也没有日志。
 - **只查询 `latest` dist-tag。** 不支持固定版本范围、`next`/`beta` 通道，也无法
   把某个包压在某个大版本上；对于永远不想升级的插件，请使用 `exclude`。
-- **同一时间只有一个气泡。** 在它等待回答期间，定时检查会跳过；这期间发布的新
-  版本，会在你回答之后的第一轮检查中被发现。
+- **同一时间只有一个气泡。** 在它等待回答期间，定时检查会跳过，`/check-updates`
+  也会以"已有升级提问未回答"为由拒绝执行；这期间发布的新版本，会在你回答之后的
+  第一轮检查中被发现。
 - **拒绝是针对那个确切版本的**，而不是"到此为止的所有版本"：如果注册表的
   `latest` 变成另一个仍然高于你当前版本的版本——包括 unpublish 之后降下来的
   版本——你还是会被再次询问。
